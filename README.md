@@ -76,7 +76,8 @@ Crypto definitions (all AES-128):
   `card_key = CMAC(issuer_key, 2D003F75 || UID || version_u32_le)`,
   `k0 = CMAC(card_key, 2D003F76)`, `k1 = CMAC(issuer_key, 2D003F77)`,
   `k2 = CMAC(card_key, 2D003F78)`, `k3 = CMAC(card_key, 2D003F79)`,
-  `k4 = CMAC(card_key, 2D003F7A)`, `card_id = CMAC(card_key, 2D003F7B)`.
+  `k4 = CMAC(card_key, 2D003F7A)`,
+  `card_id = CMAC(issuer_key, 2D003F7B || UID)`.
 - `sdm_full`: `decrypted_p = AES-decrypt(k1, p)`;
   `sv2 = sv2_build(uid, counter)`; `derived_mac_key = CMAC(k2, sv2)`;
   `full_cmac = CMAC(derived_mac_key, empty)`; `c` = odd-index bytes of
