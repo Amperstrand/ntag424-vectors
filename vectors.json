@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "notes": "All hex strings are lowercase. Byte-exact cross-language test vectors for the NTAG424 DNA / boltcard crypto stack. See README.md for the schema and the consumer update flow. 'counter' is the 24-bit SDMReadCtr as an unsigned integer; inside SV2 it is encoded as 3 bytes big-endian at offset 13.",
+  "notes": "All hex strings are lowercase. Byte-exact cross-language test vectors for the NTAG424 DNA / boltcard crypto stack. See README.md for the schema and the consumer update flow. 'counter_bytes' is the 3-byte SDMReadCtr exactly as stored in PICCData[8..11] and SV2[13..16] (SV2 copies the PICC bytes verbatim); libraries differ on whether they interpret this field as little- or big-endian, so the vectors pin the BYTES, not an integer.",
   "vectors": [
     {
       "id": "an12196-table1-sv1-session-enc-key",
@@ -39,7 +39,7 @@
       "expected": {
         "decrypted": "c704de5f1eacc0403d0000da5cf60941",
         "uid": "04de5f1eacc040",
-        "counter": 3997696
+        "counter_bytes": "3d0000"
       },
       "origin": "NXP AN12196 §3.4.2.1 Table 2 (PICCENCData decryption, K_SDMMetaRead = zero key), via Amperstrand/ntag424-crypto test/an12196-vectors.test.ts"
     },
@@ -49,7 +49,7 @@
       "input": {
         "op": "sv2_build",
         "uid": "04de5f1eacc040",
-        "counter": 3997696
+        "counter_bytes": "3d0000"
       },
       "expected": {
         "sv2": "3cc30001008004de5f1eacc0403d0000"
@@ -76,7 +76,7 @@
         "op": "sun_mac",
         "key": "00000000000000000000000000000000",
         "uid": "04de5f1eacc040",
-        "counter": 3997696
+        "counter_bytes": "3d0000"
       },
       "expected": {
         "cmac_truncated": "94eed9ee65337086"
@@ -211,7 +211,7 @@
       "expected": {
         "decrypted_p": "c70425607a8f69800000000000000000",
         "uid": "0425607a8f6980",
-        "counter": 0,
+        "counter_bytes": "000000",
         "sv2": "3cc3000100800425607a8f6980000000",
         "derived_mac_key": "85f6155e3414e60874534940a44703a2",
         "full_cmac": "90fc61c953a2c922e50129eae4221998"
@@ -231,7 +231,7 @@
       "expected": {
         "decrypted_p": "c70425607a8f69800100000000000000",
         "uid": "0425607a8f6980",
-        "counter": 1,
+        "counter_bytes": "010000",
         "sv2": "3cc3000100800425607a8f6980010000",
         "derived_mac_key": "e201ced0a166872a8d1746305d979edb",
         "full_cmac": "dcb46b9d83123f86420d63a69f9ed254"
@@ -244,7 +244,7 @@
       "input": {
         "op": "sv2_build",
         "uid": "041065fa967380",
-        "counter": 42
+        "counter_bytes": "2a0000"
       },
       "expected": {
         "sv2": "3cc300010080041065fa9673802a0000"

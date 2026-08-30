@@ -42,8 +42,12 @@ each vector records where the bytes came from:
 Conventions:
 
 - All hex strings are **lowercase**; consumers normalize before comparing.
-- `counter` is the 24-bit SDMReadCtr as an unsigned integer. Inside SV2 it
-  is encoded as 3 bytes big-endian at offset 13.
+- `counter_bytes` is the 3-byte SDMReadCtr exactly as stored in
+  `PICCData[8..11]` — `SV2[13..16]` copies those bytes verbatim. The
+  vectors pin the BYTES: libraries expose different integer conventions
+  (e.g. the Rust `ntag424` crate reads them little-endian via
+  `u32::from_le_bytes`, the TS lib takes them reversed as
+  `[b2, b1, b0]`), so no integer field is used.
 - Absent keys in `expected` mean the source did not publish that value;
   consumers verify only the fields present.
 
@@ -52,12 +56,12 @@ Conventions:
 | category | `input.op` | input fields | expected fields |
 |---|---|---|---|
 | an12196 | `aes_cmac` | `key`, `message` | `cmac` |
-| an12196 | `picc_decrypt` | `key`, `picc_enc_data` | `decrypted`, `uid`, `counter` |
-| an12196 | `sv2_build` | `uid`, `counter` | `sv2` |
-| an12196 | `sun_mac` | `key`, `uid`, `counter` | `cmac_truncated` |
+| an12196 | `picc_decrypt` | `key`, `picc_enc_data` | `decrypted`, `uid`, `counter_bytes` |
+| an12196 | `sv2_build` | `uid`, `counter_bytes` | `sv2` |
+| an12196 | `sun_mac` | `key`, `uid`, `counter_bytes` | `cmac_truncated` |
 | derivation | `derive_keys` | `issuer_key`, `uid`, `version` | `card_key`, `k0`..`k4`, `card_id` (subset allowed) |
-| sdm | `sdm_full` | `k1`, `k2`, `p`, `c` | `decrypted_p`, `uid`, `counter`, `sv2`, `derived_mac_key`, `full_cmac` |
-| sdm | `sv2_build` | `uid`, `counter` | `sv2` |
+| sdm | `sdm_full` | `k1`, `k2`, `p`, `c` | `decrypted_p`, `uid`, `counter_bytes`, `sv2`, `derived_mac_key`, `full_cmac` |
+| sdm | `sv2_build` | `uid`, `counter_bytes` | `sv2` |
 
 Crypto definitions (all AES-128):
 
@@ -65,7 +69,7 @@ Crypto definitions (all AES-128):
 - `picc_decrypt`: AES decrypt of `picc_enc_data` (single 16-byte block,
   zero IV / ECB as used by AN12196 §3.4.2.1) → plaintext is
   `PICCDataTag(1) || UID(7) || SDMReadCtr(3) || padding(5)`.
-- `sv2_build`: `SV2 = 3C C3 00 01 00 80 || UID(7) || counter(3, big-endian)`.
+- `sv2_build`: `SV2 = 3C C3 00 01 00 80 || UID(7) || counter_bytes(3, verbatim PICCData bytes)`.
 - `sun_mac`: `Ks = CMAC(key, SV2)`, `MACt = odd-index bytes (1,3,..15) of
   CMAC(Ks, empty)`.
 - `derive_keys` (boltcard deterministic scheme):
