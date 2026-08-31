@@ -21,6 +21,7 @@ each vector records where the bytes came from:
 | [bolty-rs](https://github.com/Amperstrand/bolty-rs) `tests/fixtures/derivation/boltcard_deterministic.toml` | Deterministic key derivation (tags `2D003F75`..`2D003F7B`), extracted from Bolty C++ `KeyDerivation.h`, one vector hardware-proven, one cross-validated against boltcard-cloudflareworker |
 | bolty-rs `tests/fixtures/picc/valid_picc.toml` | End-to-end SDM decrypt + CMAC fixtures (`p`/`c`, derived MAC key, full CMAC) |
 | bolty-rs `crates/bolty-core/src/picc.rs` tests, `AGENTS.md` "Card Recovery" | SV2 construction byte values and the issuer-key `0000…0001` derivation worked example |
+| Cross-implementation audit (2026-08-31; bolty-rs audit evidence task-3/task-4) | 21 `derive_keys` vectors executed on two independent references (bolty-cpp `KeyDerivation.h` and boltcard-cloudflareworker `keygenerator.js`, byte-identical outputs, versions incl. 0/2/255/0x01020304/0x12345678 edges) and 9 `sdm_full` vectors transcription-derived from the Go boltcard reference (`lnurlw_request.go` + `crypto.go`, line-cited, validated byte-for-byte against pre-existing reference vectors) — 6 positive (counter max, endianness pair, zero keys, non-zero PICC tail, all-FF UID) + 3 negative |
 
 ## Schema
 
@@ -31,6 +32,7 @@ each vector records where the bytes came from:
     {
       "id": "unique-stable-id",
       "category": "an12196" | "sdm" | "derivation",
+      "negative": true,              // OPTIONAL, reject vectors only (see below)
       "input":  { "op": "<operation>", ...operation fields },
       "expected": { ...expected fields },
       "origin": "where these bytes were lifted from"
@@ -50,6 +52,13 @@ Conventions:
   `[b2, b1, b0]`), so no integer field is used.
 - Absent keys in `expected` mean the source did not publish that value;
   consumers verify only the fields present.
+- `"negative": true` marks a REJECT vector: a conforming SDM
+  verification chain MUST refuse the input `p`/`c` — either the PICC
+  decrypt gate fails (PICCDataTag ≠ 0xC7) or the SUN-MAC verification
+  fails. Consumers assert rejection instead of comparing intermediates;
+  `expected` (if present) is documentation of the plaintext, never an
+  assertion target. Suite counts: 46 vectors (26 derivation, 12 sdm,
+  8 an12196), of which 3 are negative.
 
 ### Operations
 

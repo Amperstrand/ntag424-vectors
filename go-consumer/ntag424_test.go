@@ -45,6 +45,7 @@ type vectorExpected struct {
 type vector struct {
 	ID       string         `json:"id"`
 	Category string         `json:"category"`
+	Negative bool           `json:"negative"`
 	Input    vectorInput    `json:"input"`
 	Expected vectorExpected `json:"expected"`
 	Origin   string         `json:"origin"`
@@ -66,7 +67,7 @@ func loadVectors(t *testing.T) []vector {
 	if doc.SchemaVersion != 1 {
 		t.Fatalf("unexpected schema_version %d", doc.SchemaVersion)
 	}
-	if len(doc.Vectors) != 16 {
+	if len(doc.Vectors) != 46 {
 		t.Fatalf("vendored vectors.json changed size: %d vectors", len(doc.Vectors))
 	}
 	return doc.Vectors
@@ -180,8 +181,8 @@ func TestSharedVectors(t *testing.T) {
 
 	t.Run("derive_keys", func(t *testing.T) {
 		got := byOp(vs, "derive_keys")
-		if len(got) != 5 {
-			t.Fatalf("expected 5 derive_keys vectors, got %d", len(got))
+		if len(got) != 26 {
+			t.Fatalf("expected 26 derive_keys vectors, got %d", len(got))
 		}
 		for _, v := range got {
 			dk, err := DeriveKeys(
@@ -219,12 +220,32 @@ func TestSharedVectors(t *testing.T) {
 
 	t.Run("sdm_full", func(t *testing.T) {
 		got := byOp(vs, "sdm_full")
-		if len(got) != 2 {
-			t.Fatalf("expected 2 sdm_full vectors, got %d", len(got))
+		if len(got) != 11 {
+			t.Fatalf("expected 11 sdm_full vectors, got %d", len(got))
 		}
+		negatives := 0
 		for _, v := range got {
 			k1 := mustUnhex(t, v.Input.K1, "k1", v.ID)
 			k2 := mustUnhex(t, v.Input.K2, "k2", v.ID)
+
+			if v.Negative {
+				negatives++
+				// The chain must reject: decrypt gate failure OR SUN-MAC
+				// mismatch. expected fields are documentation only.
+				p, err := DecryptPicc(k1, mustUnhex(t, v.Input.P, "p", v.ID))
+				if err == nil {
+					ok, err := VerifySunMac(k2, p.UID[:], p.CounterBytes[:],
+						mustUnhex(t, v.Input.C, "c", v.ID))
+					if err != nil {
+						t.Fatalf("vector %s: %v", v.ID, err)
+					}
+					if ok {
+						t.Errorf("negative vector %s: verification must reject", v.ID)
+					}
+				}
+				continue
+			}
+
 			p, err := DecryptPicc(k1, mustUnhex(t, v.Input.P, "p", v.ID))
 			if err != nil {
 				t.Fatalf("vector %s: %v", v.ID, err)
@@ -259,6 +280,9 @@ func TestSharedVectors(t *testing.T) {
 			if !ok {
 				t.Errorf("vector %s: c=%s not verified", v.ID, v.Input.C)
 			}
+		}
+		if negatives != 3 {
+			t.Fatalf("expected 3 negative sdm_full vectors, got %d", negatives)
 		}
 	})
 }
