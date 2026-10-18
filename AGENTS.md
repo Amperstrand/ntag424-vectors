@@ -79,7 +79,11 @@ NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worke
    release) of `vectors.json`; CI compares against the canonical blob. A
    drifted vendored copy fails CI unless it rides an intentional
    vector-version bump (tracked as issue #1 — canonical schema validation,
-   Go consumer in CI, drift checks, immutable versioned releases).
+   Go consumer in CI, drift checks, immutable versioned releases). First
+   live consumer wiring: boltcard-cloudflareworker#68 — reference-locked
+   vendored copy + `LOCK` + sha256 assert + `npm run vectors:check` (46
+   vectors across aes_cmac / sv2_build / picc_decrypt / sun_mac /
+   sdm_full, skips counted aloud per the rule).
 5. **Disagreements escalate to provenance.** If two green implementations
    disagree on real hardware behavior, neither wins by vote: a new vector
    is lifted from the documented source (AN12196 table, RFC, or a
