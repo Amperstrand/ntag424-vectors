@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  schema:
+    name: schema + counts + go-consumer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate canonical vectors.json (schema, unique ids, suite counts)
+        run: |
+          pip install --quiet jsonschema
+          python3 scripts/validate_schema.py vectors.json
+
+      - name: go-consumer vendored copy is byte-identical to the canonical blob
+        run: |
+          canonical="$(sha256sum vectors.json | cut -d' ' -f1)"
+          vendored="$(sha256sum go-consumer/vectors.json | cut -d' ' -f1)"
+          if [ "$canonical" != "$vendored" ]; then
+            echo "go-consumer/vectors.json drifted from canonical vectors.json"
+            echo "  canonical: $canonical"
+            echo "  vendored:  $vendored"
+            exit 1
+          fi
+          echo "go-consumer copy OK ($canonical)"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Run the reference Go consumer against every expressible vector
+        working-directory: go-consumer
+        run: go test ./...
+
+  drift:
+    name: consumer drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Every consumer's vendored copy matches its LOCK and a real canonical generation
+        run: python3 scripts/drift_check.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

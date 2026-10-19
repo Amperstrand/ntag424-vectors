@@ -1,0 +1,73 @@
+name: release
+
+# One immutable tagged release per canonical vectors.json generation.
+# Tags vectors-vN are NEVER moved or deleted (canon: immutable versioned
+# releases). Re-running on the same vectors.json is a no-op (sha marker).
+on:
+  push:
+    branches: [main]
+    paths: [vectors.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute tag, checksum, and lock snippet
+        id: prep
+        run: |
+          sha="$(sha256sum vectors.json | cut -d' ' -f1)"
+
+          # no-op if this exact generation already has a release
+          existing="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json body --jq ".[].body" 2>/dev/null | grep -c "vectors-sha256: $sha" || true)"
+          if [ "$existing" != "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "generation $sha already released"
+            exit 0
+          fi
+
+          n="$(git ls-remote --tags origin 'refs/tags/vectors-v*' | wc -l)"
+          tag="vectors-v$((n + 1))"
+
+          sha256sum vectors.json > SHA256SUMS
+
+          {
+            echo "Vendored from https://github.com/Amperstrand/ntag424-vectors"
+            echo "release: $tag"
+            echo "upstream commit: $GITHUB_SHA"
+            echo "vectors.json sha256: $sha"
+            echo "Refresh: overwrite vectors.json from the release asset, update this LOCK, run the consumer's vectors check."
+          } > LOCK
+
+          {
+            echo "Immutable vector generation \`$tag\`."
+            echo
+            echo "\`vectors.json\` sha256: \`$sha\`"
+            echo
+            echo "vectors-sha256: $sha"
+            echo
+            echo "Consumers: pin this release by copying the asset byte-exact and vendoring the generated LOCK snippet (release line + upstream commit + sha256)."
+          } > release-body.md
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        if: steps.prep.outputs.skip != 'true'
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG — canonical vectors generation" \
+            --notes-file release-body.md \
+            vectors.json SHA256SUMS LOCK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.prep.outputs.tag }}

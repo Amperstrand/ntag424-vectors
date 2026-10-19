@@ -78,9 +78,10 @@ NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worke
 4. **Vendored copies may not drift.** Consumers carry a copy (or a pinned
    release) of `vectors.json`; CI compares against the canonical blob. A
    drifted vendored copy fails CI unless it rides an intentional
-   vector-version bump (tracked as issue #1 — canonical schema validation,
-   Go consumer in CI, drift checks, immutable versioned releases). First
-   live consumer wiring: boltcard-cloudflareworker#68 — reference-locked
+   vector-version bump. Enforced since the enforcement arm landed
+   (schema/vectors.schema.json + scripts/validate_schema.py +
+   scripts/drift_check.py + release tags `vectors-vN`; issue #1).
+   First live consumer wiring: boltcard-cloudflareworker#68 — reference-locked
    vendored copy + `LOCK` + sha256 assert + `npm run vectors:check` (46
    vectors across aes_cmac / sv2_build / picc_decrypt / sun_mac /
    sdm_full, skips counted aloud per the rule).
@@ -93,7 +94,13 @@ NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worke
 
 - Structure: `vectors.json` (canonical) + `go-consumer/` (reference
   consumer: `go test ./...` — reads `vectors.json`, asserts every
-  expressible vector, prints skip counts).
+  expressible vector, prints skip counts) + `schema/` (machine form of
+  the README schema) + `scripts/` (`validate_schema.py`,
+  `drift_check.py`, `consumers.json` — the consumer manifest).
+- CI (`.github/workflows/ci.yml`): schema + unique ids + suite counts,
+  go-consumer run against the canonical blob, and the consumer drift
+  check across the whole line. `release.yml` cuts an immutable
+  `vectors-vN` tag per generation.
 - A vectors change is a **conformance change**: bump `schema_version` if
   the shape moves, update `go-consumer`, and land consumer updates
   (ntag424-crypto test copy, Rust consumer branch) in the same wave.
@@ -119,7 +126,17 @@ NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worke
 ## Cross-references — lane B1 conformance work (2026-10)
 
 - ntag424-vectors **#1** — canonical vector CI + consumer drift checks +
-  versioned releases (the enforcement arm of rule 4).
+  versioned releases (the enforcement arm of rule 4). **Landed**: schema
+  + validator + drift job + `vectors-vN` release automation; residual —
+  length-class negative vectors (malformed p/c lengths) are a tracked
+  follow-up wave.
+- Canon-set completion (2026-10-19): bolt-card-programmer **#20** and
+  bolt-nfc-android-app **#12** wire the oracle into both write-path apps
+  (via the extracted `sunVerify` core — the apps' real `testPAndC` chain,
+  20 expressible vectors, 26 `derive_keys` skipped aloud);
+  ntag424-crypto **#7** and ntag424 `ai-experiments` add LOCK +
+  sha256 asserts pinning `vectors-v1`. All six canon repos now consume
+  the oracle with reference-locked vendored copies.
 - ntag424 **#3 / #4 / PR5 / PR6** — LenCap=0x03 hardware-compat fix, fork
   strategy (ai-experiments integration branch, upstream-feedback intent),
   AES auth fixtures.

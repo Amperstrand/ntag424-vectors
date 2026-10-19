@@ -1,0 +1,33 @@
+[
+  {
+    "repo": "Amperstrand/boltcard-cloudflareworker",
+    "vectors_path": "tests/conformance/ntag424-vectors/vectors.json",
+    "lock_path": "tests/conformance/ntag424-vectors/LOCK"
+  },
+  {
+    "repo": "Amperstrand/ntag424-crypto",
+    "vectors_path": "test/vectors.json",
+    "lock_path": "test/LOCK"
+  },
+  {
+    "repo": "Amperstrand/ntag424",
+    "branch": "ai-experiments",
+    "vectors_path": "ntag424/tests/vectors.json",
+    "lock_path": "ntag424/tests/LOCK"
+  },
+  {
+    "repo": "Amperstrand/bolty-rs",
+    "vectors_path": "tests/fixtures/ntag424-vectors/vectors.json",
+    "lock_path": "tests/fixtures/ntag424-vectors/LOCK"
+  },
+  {
+    "repo": "Amperstrand/bolt-card-programmer",
+    "vectors_path": "tests/conformance/ntag424-vectors/vectors.json",
+    "lock_path": "tests/conformance/ntag424-vectors/LOCK"
+  },
+  {
+    "repo": "Amperstrand/bolt-nfc-android-app",
+    "vectors_path": "__tests__/conformance/ntag424-vectors/vectors.json",
+    "lock_path": "__tests__/conformance/ntag424-vectors/LOCK"
+  }
+]
