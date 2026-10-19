@@ -96,9 +96,21 @@ Crypto definitions (all AES-128):
 
 1. Vendor-copy the canonical `vectors.json` into the consumer repo
    (e.g. `tests/vectors.json`). Never edit the vendored copy by hand —
-   its sha256 must equal the canonical file's.
+   its sha256 must equal the canonical file's. Add a `LOCK` file next to
+   it recording where the bytes came from:
+   ```
+   Vendored from https://github.com/Amperstrand/ntag424-vectors
+   release: vectors-v1
+   upstream commit: 3c35b1ead9cd560bd7f526c943706c2b2e8d8ebd
+   vectors.json sha256: 522cab963c3f7db1ab9249c0d4e207b43abc0b4061323fd5c55755959a4ff65f
+   Refresh: <the consumer's vectors-check command>
+   ```
+   (`release:` is optional; `upstream commit:` + sha256 are required —
+   the drift job validates both.)
 2. Add/refresh the test that loads it (`include_str!` + `serde_json` in
    Rust, plain import in vitest, `os.ReadFile` + `encoding/json` in Go).
+   Assert the sha256 of the vendored file in-suite so count-preserving
+   edits cannot pass silently.
 3. Run every category the public API can express; skip the rest with an
    explicit counted comment/assertion.
 4. A new vector lands here first (with `origin`), then is re-vendored
@@ -111,3 +123,55 @@ Crypto definitions (all AES-128):
 | TypeScript | Amperstrand/ntag424-crypto | `test/shared-vectors.test.ts` |
 | Rust | Amperstrand/ntag424 (branch `ai-experiments`) | `tests/shared_vectors.rs` |
 | Go | this repo, `go-consumer/` | `go test ./go-consumer/...` |
+| TypeScript | Amperstrand/boltcard-cloudflareworker | `tests/ntag424Vectors.test.ts` |
+| Rust | Amperstrand/bolty-rs | `crates/bolty-core/tests/ntag424_vectors.rs` |
+| TypeScript (write path) | Amperstrand/bolt-card-programmer | `tests/ntag424Vectors.test.ts` |
+| JavaScript (legacy write path) | Amperstrand/bolt-nfc-android-app | `__tests__/ntag424-vectors.test.js` |
+
+## Enforcement (CI)
+
+`.github/workflows/ci.yml` runs on every PR and push to `main`:
+
+1. **Schema + counts** — `scripts/validate_schema.py` validates
+   `vectors.json` against `schema/vectors.schema.json` (the machine form
+   of the schema section above), asserts unique ids, negative-vector
+   placement, and the suite-size counts (46 = 26 derivation / 12 sdm /
+   8 an12196, 3 negative). A suite-size change is a conformance wave:
+   the counts move here, in the README, in `go-consumer`, and in every
+   consumer suite together.
+2. **Reference consumer** — `go test ./go-consumer/...` runs every
+   expressible vector, with the in-repo copy checked byte-identical to
+   the canonical blob first.
+3. **Consumer drift check** — `scripts/drift_check.py` walks every
+   consumer in `scripts/consumers.json` (fetched live from GitHub) and
+   fails if a vendored copy no longer hashes to its LOCK sha256, or the
+   LOCK pin does not match the canonical `vectors.json` at the recorded
+   upstream commit. Consumers pin a generation — they are not forced
+   onto HEAD — so this catches hand-edits, fabricated locks, and silent
+   partial refreshes, not legitimate pinned-old generations.
+
+Adding a consumer to the line = add it to `scripts/consumers.json` once
+its LOCK + suite have landed.
+
+## Versioned releases
+
+Every canonical `vectors.json` generation is published as an immutable
+release tag `vectors-vN` (`.github/workflows/release.yml`; also
+dispatchable by hand). Never move or delete a `vectors-vN` tag — cut the
+next one instead. Release assets: `vectors.json`, `SHA256SUMS`, and a
+ready-to-vendor `LOCK` snippet for the generation.
+
+## Adding vectors (the wave process)
+
+1. Land the new vector here first — lift-only from a verified source
+   (AN12196 table, RFC 4493 §4, hardware-proven capture, or a
+   cross-implementation audit), with an `origin` field naming it. Never
+   generate vectors by running an implementation under test.
+2. The validator's suite-count assertion fails on purpose: update the
+   counts in this README, in `scripts/validate_schema.py`, and in
+   `go-consumer`'s assertions.
+3. Same wave, re-vendor + refresh LOCKs in every consumer of the
+   affected categories (the drift job is the checklist — it stays red
+   until each consumer is refreshed).
+4. The release workflow cuts the next `vectors-vN` when the new
+   generation lands on `main`.

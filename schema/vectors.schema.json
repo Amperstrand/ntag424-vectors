@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Amperstrand/ntag424-vectors/schema/vectors.schema.json",
+  "title": "ntag424-vectors canonical vectors.json",
+  "description": "Machine form of the normative schema section in README.md. Hex strings are lowercase, even-length. counter_bytes is the 3-byte SDMReadCtr verbatim from PICCData[8..11].",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "vectors"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "notes": { "type": "string" },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/vector" }
+    }
+  },
+  "$defs": {
+    "hex": { "type": "string", "pattern": "^[0-9a-f]+$" },
+    "hex8bytes": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "hex16bytes": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "uid": { "type": "string", "pattern": "^[0-9a-f]{14}$" },
+    "counter": { "type": "string", "pattern": "^[0-9a-f]{6}$" },
+    "version_u32": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+    "vector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "input", "expected", "origin"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "minLength": 3 },
+        "category": { "enum": ["an12196", "sdm", "derivation"] },
+        "negative": { "type": "boolean", "default": false },
+        "input": { "$ref": "#/$defs/input" },
+        "expected": { "$ref": "#/$defs/expected" },
+        "origin": { "type": "string", "minLength": 8 }
+      }
+    },
+    "input": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "key", "message"],
+          "properties": {
+            "op": { "const": "aes_cmac" },
+            "key": { "$ref": "#/$defs/hex16bytes" },
+            "message": { "$ref": "#/$defs/hex" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "key", "picc_enc_data"],
+          "properties": {
+            "op": { "const": "picc_decrypt" },
+            "key": { "$ref": "#/$defs/hex16bytes" },
+            "picc_enc_data": { "$ref": "#/$defs/hex16bytes" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "uid", "counter_bytes"],
+          "properties": {
+            "op": { "const": "sv2_build" },
+            "uid": { "$ref": "#/$defs/uid" },
+            "counter_bytes": { "$ref": "#/$defs/counter" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "key", "uid", "counter_bytes"],
+          "properties": {
+            "op": { "const": "sun_mac" },
+            "key": { "$ref": "#/$defs/hex16bytes" },
+            "uid": { "$ref": "#/$defs/uid" },
+            "counter_bytes": { "$ref": "#/$defs/counter" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "issuer_key", "uid", "version"],
+          "properties": {
+            "op": { "const": "derive_keys" },
+            "issuer_key": { "$ref": "#/$defs/hex16bytes" },
+            "uid": { "$ref": "#/$defs/uid" },
+            "version": { "$ref": "#/$defs/version_u32" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "k1", "k2", "p", "c"],
+          "properties": {
+            "op": { "const": "sdm_full" },
+            "k1": { "$ref": "#/$defs/hex16bytes" },
+            "k2": { "$ref": "#/$defs/hex16bytes" },
+            "p": { "$ref": "#/$defs/hex16bytes" },
+            "c": { "$ref": "#/$defs/hex8bytes" }
+          }
+        }
+      ]
+    },
+    "expected": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cmac"],
+          "properties": {
+            "cmac": { "$ref": "#/$defs/hex16bytes" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decrypted", "uid", "counter_bytes"],
+          "properties": {
+            "decrypted": { "$ref": "#/$defs/hex16bytes" },
+            "uid": { "$ref": "#/$defs/uid" },
+            "counter_bytes": { "$ref": "#/$defs/counter" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sv2"],
+          "properties": {
+            "sv2": { "$ref": "#/$defs/hex16bytes" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cmac_truncated"],
+          "properties": {
+            "cmac_truncated": { "$ref": "#/$defs/hex8bytes" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "card_key": { "$ref": "#/$defs/hex16bytes" },
+            "k0": { "$ref": "#/$defs/hex16bytes" },
+            "k1": { "$ref": "#/$defs/hex16bytes" },
+            "k2": { "$ref": "#/$defs/hex16bytes" },
+            "k3": { "$ref": "#/$defs/hex16bytes" },
+            "k4": { "$ref": "#/$defs/hex16bytes" },
+            "card_id": { "$ref": "#/$defs/hex16bytes" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "anyOf": [
+            { "required": ["decrypted_p"] },
+            { "required": ["derived_mac_key"] },
+            { "required": ["full_cmac"] }
+          ],
+          "properties": {
+            "decrypted_p": { "$ref": "#/$defs/hex16bytes" },
+            "uid": { "$ref": "#/$defs/uid" },
+            "counter_bytes": { "$ref": "#/$defs/counter" },
+            "sv2": { "$ref": "#/$defs/hex16bytes" },
+            "derived_mac_key": { "$ref": "#/$defs/hex16bytes" },
+            "full_cmac": { "$ref": "#/$defs/hex16bytes" }
+          }
+        }
+      ]
+    }
+  }
+}
