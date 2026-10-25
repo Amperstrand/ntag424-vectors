@@ -39,8 +39,8 @@ reader firmware). Both hardware-verified with real NTAG 424 DNA cards.
 NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worker
 ┌────────────────┐              ┌──────────────────┐           ┌─────────────────────────┐
 │ SDM configured │   NFC tap    │ reads NDEF URL   │  GET /?p= │ handleLnurlw()          │
-│ K1 = MAC key   │ ───────────► │ p=<enc PICC>     │ ────────► │ deterministic key       │
-│ K2 = ENC key   │  (SUN only:  │ c=<CMAC>         │           │ derivation (keygen) →   │
+│ K1 = ENC key   │ ───────────► │ p=<enc PICC>     │ ────────► │ deterministic key       │
+│ K2 = MAC key   │  (SUN only:  │ c=<CMAC>         │           │ derivation (keygen) →   │
 │ ctr, UID       │   no keys on │                  │           │ decrypt p (ntag424-     │
 └────────────────┘   the air)   └──────────────────┘           │ crypto) → verify c →    │
                                                                │ 200 withdrawRequest(k1) │
@@ -93,7 +93,7 @@ NTAG424 DNA card                 reader / POS / wallet          Cloudflare Worke
 ## Build / test (this repo)
 
 - Structure: `vectors.json` (canonical) + `go-consumer/` (reference
-  consumer: `go test ./...` — reads `vectors.json`, asserts every
+  consumer: `cd go-consumer && go test ./...` — reads `vectors.json`, asserts every
   expressible vector, prints skip counts) + `schema/` (machine form of
   the README schema) + `scripts/` (`validate_schema.py`,
   `drift_check.py`, `consumers.json` — the consumer manifest).
