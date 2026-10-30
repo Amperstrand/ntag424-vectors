@@ -266,7 +266,7 @@ python3 scripts/validate_schema.py vectors.json
 
 # reference consumer (CI also asserts go-consumer/vectors.json is byte-identical to the canonical blob)
 sha256sum vectors.json go-consumer/vectors.json
-cd go-consumer && go test ./...
+(cd go-consumer && go test ./...)
 
 # consumer drift check across the line (needs GITHUB_TOKEN; fetches consumers.json entries live)
 python3 scripts/drift_check.py
