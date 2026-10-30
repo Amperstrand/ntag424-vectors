@@ -307,7 +307,7 @@ at a real canonical generation, and `1` on any drift.
 |---|---|---|
 | TypeScript | Amperstrand/ntag424-crypto | `test/shared-vectors.test.ts` |
 | Rust | Amperstrand/ntag424 (branch `ai-experiments`) | `tests/shared_vectors.rs` |
-| Go | this repo, `go-consumer/` | `go test ./go-consumer/...` |
+| Go | this repo, `go-consumer/` | `cd go-consumer && go test ./...` |
 | TypeScript | Amperstrand/boltcard-cloudflareworker | `tests/ntag424Vectors.test.ts` |
 | Rust | Amperstrand/bolty-rs | `crates/bolty-core/tests/ntag424_vectors.rs` |
 | TypeScript (write path) | Amperstrand/bolt-card-programmer | `tests/ntag424Vectors.test.ts` |
@@ -324,7 +324,7 @@ at a real canonical generation, and `1` on any drift.
    8 an12196, 3 negative). A suite-size change is a conformance wave:
    the counts move here, in the README, in `go-consumer`, and in every
    consumer suite together.
-2. **Reference consumer** — `go test ./go-consumer/...` runs every
+2. **Reference consumer** — `cd go-consumer && go test ./...` runs every
    expressible vector, with the in-repo copy checked byte-identical to
    the canonical blob first.
 3. **Consumer drift check** — `scripts/drift_check.py` walks every
