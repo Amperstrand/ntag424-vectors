@@ -92,6 +92,191 @@ Crypto definitions (all AES-128):
   `full_cmac = CMAC(derived_mac_key, empty)`; `c` = odd-index bytes of
   `full_cmac`.
 
+## Cross-vector format & regeneration
+
+Self-contained reference for `vectors.json`: what each field contains
+(with one real vector per suite class), how the file comes to be, and how
+to verify it locally. The [Schema](#schema) section above stays normative.
+
+### Field-by-field format
+
+`vectors.json` has exactly three top-level fields — the JSON Schema
+(`schema/vectors.schema.json`, Draft 2020-12) allows no others
+(`additionalProperties: false`; `schema_version` and `vectors` required):
+
+| field | type | notes |
+|---|---|---|
+| `schema_version` | integer | pinned to `1` (`"const": 1`); bumps only when the shape moves, as part of a conformance wave |
+| `notes` | string (optional) | prose conventions; present in the current file |
+| `vectors` | array | the payload — one entry per test vector (46 today) |
+
+Each entry in `vectors` has exactly these six fields
+(`schema/vectors.schema.json` `$defs.vector`; `id`, `category`, `input`,
+`expected`, `origin` required, `additionalProperties: false`):
+
+| field | type | notes |
+|---|---|---|
+| `id` | string | stable, unique, `^[a-z0-9][a-z0-9-]*$`; uniqueness is asserted by `scripts/validate_schema.py` |
+| `category` | `"an12196"` \| `"sdm"` \| `"derivation"` | suite class; per-class counts are asserted by the validator |
+| `negative` | boolean (optional, default `false`) | marks a REJECT vector; only legal on `sdm_full` operations (`NEGATIVE_ALLOWED_OPS` in `scripts/validate_schema.py`) |
+| `input` | object | operation request; `input.op` selects one of six shapes — `aes_cmac`, `picc_decrypt`, `sv2_build`, `sun_mac`, `derive_keys`, `sdm_full` (field lists in the Operations table above) |
+| `expected` | object | expected outputs; consumers verify only the fields present — absent keys mean the source did not publish that value |
+| `origin` | string (≥ 8 chars) | provenance: the verified source the bytes were lifted from |
+
+Hex string shapes are pinned by the schema's `$defs` patterns: 16-byte
+values (keys, CMACs, SV2, …) are 32 lowercase hex chars; `uid` is 14 hex
+chars (7 bytes); `counter_bytes` is 6 hex chars (3 bytes); `version` is an
+integer 0…2³²−1.
+
+### One real vector per suite class
+
+Suite counts are asserted, not decorative — 46 vectors: 26 `derivation` /
+12 `sdm` / 8 `an12196`, of which 3 `negative` (`EXPECTED_COUNTS` in
+`scripts/validate_schema.py`). One real, unedited vector per class:
+
+`an12196` — op `aes_cmac`:
+
+```json
+{
+  "id": "an12196-table1-sv1-session-enc-key",
+  "category": "an12196",
+  "input": {
+    "op": "aes_cmac",
+    "key": "5ace7e50ab65d5d51fd5bf5a16b8205b",
+    "message": "c33c0001008004c767f2066180010000"
+  },
+  "expected": {
+    "cmac": "66da61797e23deca5d8eca13bbadf7a9"
+  },
+  "origin": "NXP AN12196 §3.3 Table 1 (SV1 -> KSesSDMFileReadENC), via Amperstrand/ntag424-crypto test/an12196-vectors.test.ts"
+}
+```
+
+`derivation` — op `derive_keys` (full expected set):
+
+```json
+{
+  "id": "derivation-bolty-cpp-vector1",
+  "category": "derivation",
+  "input": {
+    "op": "derive_keys",
+    "issuer_key": "00000000000000000000000000000000",
+    "uid": "041065fa967380",
+    "version": 1
+  },
+  "expected": {
+    "card_key": "1a3888508f11ba44942bda56b928cc4b",
+    "k0": "24d449c0c1d166827c05b8bb4a5798da",
+    "k1": "dfea2649f9ce19d0556d0c04cef56fa2",
+    "k2": "d41a0289deb7d573b700b135965cd1ea",
+    "k3": "fc5d413a564a0b415e3fd410fd19bc55",
+    "k4": "f4801a4d53d8784090aa44bbd7c89e95",
+    "card_id": "6110dea4c91ed081c43daad898a28548"
+  },
+  "origin": "bolty-rs tests/fixtures/derivation/boltcard_deterministic.toml Vector 1 (behavioral truth extracted from Bolty C++ KeyDerivation.h)"
+}
+```
+
+`sdm` — op `sdm_full` (positive):
+
+```json
+{
+  "id": "sdm-valid-picc-counter0",
+  "category": "sdm",
+  "input": {
+    "op": "sdm_full",
+    "k1": "55da174c9608993dc27bb3f30a4a7314",
+    "k2": "2ab74abc1273fb43cae97553a36d4d08",
+    "p": "e61cb056f52d34f9368f079d1814d2cf",
+    "c": "fcc9a22201ea2298"
+  },
+  "expected": {
+    "decrypted_p": "c70425607a8f69800000000000000000",
+    "uid": "0425607a8f6980",
+    "counter_bytes": "000000",
+    "sv2": "3cc3000100800425607a8f6980000000",
+    "derived_mac_key": "85f6155e3414e60874534940a44703a2",
+    "full_cmac": "90fc61c953a2c922e50129eae4221998"
+  },
+  "origin": "bolty-rs tests/fixtures/picc/valid_picc.toml fixture 'Recovered card synthetic SDM vector, read counter 0' (behavioral truth extracted from Bolty C++ PiccData.h)"
+}
+```
+
+`negative` — `"negative": true` on an `sdm_full` vector; consumers assert
+rejection instead of comparing intermediates, and `expected` documents the
+plaintext without being an assertion target:
+
+```json
+{
+  "id": "sdm-a3-neg-corrupt-c",
+  "category": "sdm",
+  "negative": true,
+  "input": {
+    "op": "sdm_full",
+    "k1": "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "k2": "f0e1d2c3b4a5968778695a4b3c2d1e0f",
+    "p": "60fcf1396f08fdca4a261e49b42c5fbb",
+    "c": "9b60324f845d7684"
+  },
+  "expected": {
+    "decrypted_p": "c704a39493cc8680ffffff0000000000"
+  },
+  "origin": "cross-impl audit A3 transcription-derived (Go lnurlw/lnurlw_request.go + crypto/crypto.go transcription, validated byte-for-byte against pre-existing reference vectors); negative: c= corrupted in its first byte (vs valid 9a60324f845d7684) — the SDM verification chain MUST reject"
+}
+```
+
+### How the file comes to be: manual lift + wave, no generator
+
+**There is no generator script** — nothing in this repo, past or present,
+computes or writes `vectors.json` (the entire script inventory is
+`scripts/validate_schema.py`, `scripts/drift_check.py`, and
+`scripts/consumers.json`). That is by design: the lift-only doctrine
+(canon rule 1 in `AGENTS.md`) requires vectors to be lifted byte-exact
+from verified external sources and forbids generating them by running an
+implementation under test ("that oracles the impl against itself"). Where
+each vector's bytes came from is recorded per-vector in `origin` and
+summarized in the provenance table at the top of this README.
+
+A new generation therefore comes to be through the **manual lift + wave
+process** (full checklist in
+[Adding vectors](#adding-vectors-the-wave-process)):
+
+1. Lift the bytes from a verified source (an NXP AN12196 table, RFC 4493
+   §4, a hardware-proven capture, or a line-cited cross-implementation
+   audit) and land the new vector here first, with its `origin`.
+2. The validator's suite-count assertion then fails on purpose — update
+   the counts in this README, `scripts/validate_schema.py`, and
+   `go-consumer`'s assertions together.
+3. In the same wave, re-vendor `vectors.json` and refresh the LOCK files
+   in every consumer of the affected categories; the drift check stays
+   red until each one is refreshed.
+4. `.github/workflows/release.yml` cuts the immutable `vectors-vN` tag
+   once the new generation lands on `main`.
+
+### Verify locally
+
+Copy-pasteable, exactly as CI runs them (`.github/workflows/ci.yml`, jobs
+`schema` and `drift`; what each check means is in
+[Enforcement](#enforcement-ci)):
+
+```bash
+# schema + unique ids + suite counts (46 = 26 derivation / 12 sdm / 8 an12196, 3 negative)
+pip install --quiet jsonschema
+python3 scripts/validate_schema.py vectors.json
+
+# reference consumer (CI also asserts go-consumer/vectors.json is byte-identical to the canonical blob)
+sha256sum vectors.json go-consumer/vectors.json
+cd go-consumer && go test ./...
+
+# consumer drift check across the line (needs GITHUB_TOKEN; fetches consumers.json entries live)
+python3 scripts/drift_check.py
+```
+
+`scripts/drift_check.py` reads its token from the `GITHUB_TOKEN`
+environment variable (CI supplies `secrets.GITHUB_TOKEN`); it exits `0`
+when every consumer's vendored copy matches its LOCK and the LOCK points
+at a real canonical generation, and `1` on any drift.
+
 ## Consumer update flow
 
 1. Vendor-copy the canonical `vectors.json` into the consumer repo
