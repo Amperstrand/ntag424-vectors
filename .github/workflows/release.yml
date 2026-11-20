@@ -64,6 +64,7 @@ jobs:
         if: steps.prep.outputs.skip != 'true'
         run: |
           gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG — canonical vectors generation" \
             --notes-file release-body.md \
